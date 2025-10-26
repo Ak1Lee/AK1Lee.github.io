@@ -100,9 +100,3 @@ theme: landscape
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
-deploy:
-  type: git
-  repo: https://github.com/Ak1Lee/AK1Lee.github.io
-  branch: main  # 或者 master，取决于 GitHub Pages 的分支设置
-  # 可选：自定义提交信息
-  message: "部署 Hexo 博客"

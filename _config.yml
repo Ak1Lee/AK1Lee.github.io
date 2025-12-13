@@ -50,6 +50,8 @@ highlight:
   tab_replace: ''
   wrap: true
   hljs: false
+  exclude_languages:
+    - mermaid
 prismjs:
   preprocess: true
   line_number: true
@@ -100,3 +102,11 @@ theme: landscape
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
+
+# Mermaid
+mermaid:
+  enable: true
+  version: "9.3.0" 
+  options:  
+    startOnLoad: true
+    theme: 'default'

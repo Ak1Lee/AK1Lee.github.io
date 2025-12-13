@@ -139,9 +139,6 @@ upload类型，会让heap资源创建在cpu侧，gpu通过PCIe读取
 
 ```mermaid
 graph TD
-    %% =======================
-    %% 左侧：CPU 环境
-    %% =======================
     subgraph CPU_Side [CPU Side]
         direction TB
         
@@ -209,3 +206,8 @@ graph TD
 还是需要一个好一点的画图工具..
 
 明日计划：
+
+```mermaid
+graph TD;
+    A-->B;
+```

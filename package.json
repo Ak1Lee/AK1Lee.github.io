@@ -6,7 +6,9 @@
     "build": "hexo generate",
     "clean": "hexo clean",
     "deploy": "hexo deploy",
-    "server": "hexo server"
+    "server": "hexo server",
+    "new": "node tools/new-post.js",
+    "push": "node tools/push.js"
   },
   "hexo": {
     "version": "8.1.0"

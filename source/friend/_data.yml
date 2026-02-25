@@ -1,0 +1,5 @@
+# 友链数据，格式参考：
+# - name: 好友昵称
+#   url: https://example.com
+#   avatar: https://example.com/avatar.png
+#   desc: 一句话描述

@@ -12,7 +12,7 @@ language: zh-CN
 timezone: ''
 
 # URL
-## 项目站点(仓库名非 xxx.github.io)需设置 root，如: url: https://AK1Lee.github.io/PersonalWeb  root: /PersonalWeb/
+## 请确认：站点在根路径用下面；在 /PersonalWeb/ 则改为 url: https://AK1Lee.github.io/PersonalWeb 并添加 root: /PersonalWeb/
 url: https://AK1Lee.github.io
 permalink: :year/:month/:day/:title/
 permalink_defaults:

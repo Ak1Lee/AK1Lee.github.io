@@ -213,5 +213,17 @@ graph TD;
 ```
 
 # 2025-12-21
-![alt text](image-1.png)
+阴影实现
 明天再写总结和计划。。
+
+# 2026
+总结什么的已经忘了，但可以更新一下work记录
+- 经典阴影-PCF-PCSS
+![2](/images/D3D/image-1.png)
+
+- PBR IBL
+![pbr ibl](/images/D3D/image3.png)
+- 自动转换
+![代码上的优化](/images/D3D/image2.png)
+
+

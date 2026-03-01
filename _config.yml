@@ -3,11 +3,11 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: Hexo
+title: Lee's Blog  # 修改为你的网站标题
 subtitle: ''
 description: ''
 keywords:
-author: John Doe
+author: Lee  # 修改为你的昵称
 language: zh-CN
 timezone: ''
 
@@ -102,6 +102,10 @@ ignore:
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
 theme: reimu
+
+# Reimu 主题覆盖（头像等）
+theme_config:
+  avatar: "avatar.jpg"  # 头像放在 source/_data/avatar/avatar.jpg
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment

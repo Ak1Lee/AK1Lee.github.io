@@ -227,3 +227,128 @@ graph TD;
 ![代码上的优化](/images/D3D/image2.png)
 
 
+
+# 暂时写下目前的几个类的构建流程吧
+MeshBase:
+私有成员：
+- XMFLOAT3 Pos，Angle，Scale 定义物体的transform
+- std::vector<StandardVertex> VertexList 定义物体的顶点列表
+- std::vector<std::uint16_t> IndiceList; 定义三角形列表
+- VertexList IndiceList 对应的CPU GPU Buffer
+- ObjectConstantBuffer：传入MVP矩阵的，以及对应的ConstantBufferMappedData
+- 对应的材质指针
+
+方法：InitVertexBufferAndIndexBuffer:
+- 填充VertexList 和 IndiceList
+- CreateVertexAndIndexBufferHeap
+  - VertexList
+    - ID3DBlob CPU副本 （暂时没用上）
+    - 创建 Default Heap VertexDefaultBufferGPU
+    - 创建 Upload Heap `CreateCommittedResource(...IID_PPV_ARGS(&VertexUploadBuffer))`
+    - DefaultBuffer 切换成copy状态
+    - `CommandList->CopyBufferRegion(...) upload->default`
+    - Default 转换为VERTEX_AND_CONSTANT_BUFFER
+  - IndiceList同理
+    - 转换为D3D12_RESOURCE_STATE_INDEX_BUFFER
+派生类Box，Plane，Sphere 主要区别在于VertexList的填充方式
+
+- 那这样如何绑定给IA？
+- ```            CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            auto VertexBufferView = MeshElement->GetVertexBufferView();
+            CommandList->IASetVertexBuffers(0, 1, &VertexBufferView);
+            auto IndexBufferView = MeshElement->GetIndexBufferView();
+            CommandList->IASetIndexBuffer(&IndexBufferView);
+
+            CommandList->DrawIndexedInstanced(MeshElement->GetIndexCount(), 1, 0, 0, 0);
+            ```
+- 总结来说，每个Mesh维护自己的顶点数据和索引数据，在初始化的时候就把cpu的UploadBuffer和GPU上的buffer创建好，把顶点和索引copy到UploadBuffer buffer，然后 copy到gpu的buffer，保存VertexBufferView 和ibv，到IA阶段传vbv和ibv绑定
+
+
+Material：
+之前写的非常非常混乱的一个类...之前把pso material rootsignature绑在一起
+现在将其重构了，目前Material类成员变量
+
+    std::string Name;
+	MaterialConstants ConstantData;
+
+	//texture
+	std::shared_ptr<Texture> AlbedoTexture;
+	std::shared_ptr<Texture> NormalTexture;
+	std::shared_ptr<Texture> MetallicTexture;
+
+
+纯数据容器
+MaterialManager：管理material类
+维护一个`unordered_map<std::string, std::shared_ptr<Material>> Materials`
+创建了material后添加到这里面
+
+	auto TestMaterial = std::make_shared<Material>("TestMaterial");
+	MaterialManager::GetInstance().AddMaterial(TestMaterial);
+
+到时候绑定的时候：
+
+    Material* MaterialPtr = MaterialManager::GetInstance().GetMaterialByName(MaterialName);
+    memcpy(CurrFrameResource.MaterialConstantBufferMappedData + i * MatConstantBufferSize, &MaterialPtr->GetConstantData(), sizeof(matConstants));
+    CommandList->SetGraphicsRootConstantBufferView(2, CurrFrameResource.MaterialConstantBuffer->GetGPUVirtualAddress() + i * MatConstantBufferSize);
+    if (MaterialPtr->HasAlbedoTexture())
+    {
+        MaterialPtr->GetAlbedoTexture()->BindSRV_Graphics(CommandList, 8);
+    }
+    ...
+
+这样就需要把MaterialConstants作为根签名的跟参数（原本是整合到跟参数表Descriptor Table的，现在又拿出来了）
+
+好，那讲到这里有用两个新东西。CurrFrameResource是什么？
+（龙书第多少章来着）
+
+    struct FrameResource
+    {
+        ComPtr<ID3D12CommandAllocator> CmdAllocator;
+        UINT64 FenceValue = 0;
+
+        //LightCB
+        ComPtr<ID3D12Resource> LightConstantBuffer;
+        UINT8* LightConstantBufferMappedData = nullptr;
+
+        //ObjectCB
+        ComPtr<ID3D12Resource> ObjectConstantBuffer;
+        UINT8* ObjectConstantBufferMappedData = nullptr;
+
+        //MaterialCB
+        ComPtr<ID3D12Resource> MaterialConstantBuffer;
+        UINT8* MaterialConstantBufferMappedData = nullptr;
+
+        void Init(ID3D12Device* device, UINT maxObjectCount);
+
+    };
+我们给每帧都定义了帧资源。每帧管理了几块内存，在cpu运行的时候记录，提交，然后GPU跑，然后CPU继续异步做下一帧的命令提交，以最大化效率。
+
+    FrameResource[0].ObjectCB  →  [obj0 | obj1 | obj2 | ...]  256字节对齐
+    FrameResource[1].ObjectCB  →  [obj0 | obj1 | obj2 | ...]
+    FrameResource[2].ObjectCB  →  [obj0 | obj1 | obj2 | ...]
+
+那你的PSO RootSignature怎么办？
+目前是每个Pass单独维护一个PSO，然后根签名是全局一个
+
+    ShadowPass.Name = "ShadowPass";
+	ShadowPass.PSO = GraphicsPSOBuilder(RootSignature.Get()).SetDepthOnly(DXGI_FORMAT_D24_UNORM_S8_UINT).Build(device);
+
+..在这之前是不是还得讲讲Pass结构体。
+PBR实现：
+todo:
+
+IBL实现：
+todo:
+
+![目前](/images/D3D/20260406173617.png)
+
+
+
+
+
+
+
+
+
+
+

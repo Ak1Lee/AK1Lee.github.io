@@ -2,6 +2,7 @@
 title: D3DRendererLog
 date: 2025-11-08 22:22:54
 tags:
+cover: /images/D3D/image3.png
 ---
 
 ## dx12渲染器记录
@@ -341,6 +342,8 @@ IBL实现：
 todo:
 
 ![目前](/images/D3D/20260406173617.png)
+
+npm run push
 
 
 

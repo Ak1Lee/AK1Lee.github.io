@@ -67,7 +67,7 @@ prismjs:
 index_generator:
   path: ''
   per_page: 10
-  order_by: -date
+  order_by: -updated
 
 # Category & Tag
 default_category: uncategorized
@@ -106,6 +106,7 @@ theme: reimu
 # Reimu 主题覆盖（头像等）
 theme_config:
   avatar: "avatar.jpg"  # 头像放在 source/_data/avatar/avatar.jpg
+  banner: "/images/common/116063033_p2.png"
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment

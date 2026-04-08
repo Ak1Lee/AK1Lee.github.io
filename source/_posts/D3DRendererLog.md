@@ -1,6 +1,7 @@
 ---
 title: D3DRendererLog
 date: 2025-11-08 22:22:54
+updated: 2026-04-08 23:30:00
 tags:
 cover: /images/D3D/image3.png
 ---

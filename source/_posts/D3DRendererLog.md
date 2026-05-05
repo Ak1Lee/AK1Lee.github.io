@@ -351,6 +351,107 @@ radiance cascade
 radiance cascade2
 ![alt text](/images/D3D/VRC2.png)
 
+---
+
+## 我们的实现
+
+### 文件结构
+
+| 文件 | 作用 |
+|------|------|
+| `GI_VoxelBuild.hlsl` | Compute Shader，生成 32×32×48 体素网格 (RWTexture3D)。`Scene_RCSample()` 翻译自 bufferB |
+| `GI_Cascade.hlsl` | **统一** Cascade 构建 (CS, level 0-4)。trace ray → 直接光 + 读 preFrameCascade0 间接光 → merge 上级 → 写入 currCascade |
+| `GI_View.hlsl` | 视图渲染 (VS+PS, 全屏三角形)。DDA 穿体素 → 读 cascade0 间接光 + 直接光 + shadow ray → 色调映射 |
+| `render.cpp` | Pass 调度、RootConstants、调试相机键盘输入 |
+| `RenderPasses/RenderPasses.cpp` | PSO/RootSig 创建。`GI_VoxelBuildPass` → `GI_CascadePass`(×5级) → `GI_ViewPass` |
+| `GI_Cascade0.hlsl` | **已废弃**（原始 cascade0 专用 shader，已被 GI_Cascade.hlsl 统一替代） |
+
+### 数据流
+
+```
+Frame N:
+  1. GI_VoxelBuildPass    → voxelGrid (RWTexture3D, 32×32×48)
+  2. GI_CascadePass lv=0  → cascade0 (StructuredBuffer, 32×32×48×54 floats)
+     读 voxelGrid + preFrameCascade0(上一帧)
+  3. GI_CascadePass lv=1  → cascade1, 读 voxelGrid + cascade0(upper) + preFrameCascade0
+  4. GI_CascadePass lv=2  → cascade2, 读 voxelGrid + cascade1(upper) + preFrameCascade0
+  5. GI_CascadePass lv=3  → cascade3, 读 voxelGrid + cascade2(upper) + preFrameCascade0
+  6. GI_CascadePass lv=4  → cascade4, 读 voxelGrid + cascade3(upper) + preFrameCascade0
+  7. GI_ViewPass          → back buffer, 读 voxelGrid + cascade0~4 + DebugCB
+```
+
+### Cascade 级数参数
+
+| Level | 空间分辨率 | probeSize | raysPerHemi | Buffer 大小 |
+|-------|-----------|-----------|-------------|------------|
+| 0 | 32×32×48 | 3 | 9 | 32×32×48×54 = 2,654,208 |
+| 1 | 16×16×24 | 6 | 36 | 16×16×24×216 = 1,327,104 |
+| 2 | 8×8×12 | 12 | 144 | 8×8×12×864 = 663,552 |
+| 3 | 4×4×6 | 24 | 576 | 4×4×6×3456 = 331,776 |
+| 4 | 2×2×3 | 48 | 2304 | 2×2×3×13824 = 165,888 |
+
+### 半球 (Hemi) 约定
+
+```
+0: -X   1: +X   2: -Y   3: +Y   4: -Z   5: +Z
+```
+
+每个体素存储 6 个半球 × N 根 ray 的 radiance。索引公式：
+```
+index = voxelId × (6 × raysPerHemi) + hemi × raysPerHemi + ray
+voxelId = x + y × resX + z × resX × resY
+```
+
+### 关键差异 vs 参考
+
+| 项目 | 参考 | 我们 |
+|------|------|------|
+| **加权** | 存储时加权 (ComputeWeight)，读时直接加 | 读时 CASC0_WEIGHT 积分，存储时无权重 |
+| **DFBox** | `abs(p) - b`（b=半边长） | `abs(p - b*0.5) - b*0.5`（b=全长）⚠️ |
+| **直接光阴影** | 预计算 Shadow Map + PCF 采样 | 内联 shadow ray (DDA 64 步) |
+| **太阳** | `GetSunDir(t)` 随时间旋转 | 硬编码 `normalize(0.5, 1.0, -0.3)` |
+| **Merge** | `distInterp = clamp((dist - lodFactor) / lodFactor * 0.5, 0, 1)` 且 ×1.0 | 同参考公式 |
+| **Cascade0 间接** | 读上一帧 cascade0（帧间累积） | 同，`preFrameCascade0` (t2) |
+| **色调映射** | 无（直接输出） | `color / (color+1)` + gamma 2.2 |
+
+### CASC0_WEIGHT（读时积分权重）
+
+专门为 cascade 0 (probeSize=3, 9 rays) 设计，已将 Lambert 的 `/PI` 纳入：
+```
+     0.0625  0.0625  0.0625
+     0.0625  0.5     0.0625
+     0.0625  0.0625  0.0625
+```
+总和精确为 1.0（能量守恒）。
+
+### Debug 相机
+
+- W/S: 前进/后退
+- A/D: 左移/右移  
+- Q/E: 下降/上升
+- 方向键: 旋转
+- RootConstants (b1): `uint cascadeLevel, float yaw, pitch, posX, posY, posZ` (6 DWORDs)
+
+### VIZ_MODE
+
+| 值 | 模式 |
+|----|------|
+| 0 | 完整 GI (albedo × (indirect + direct)) |
+| 1 | 体素 albedo + N·L (调试 voxel build + DDA) |
+| 2 | 法线可视化 |
+
+---
+
+## 已知问题 / TODO
+
+1. **DFBox 约定不一致**：我们的 DFBox 使用 `abs(p - b*0.5) - b*0.5`（b=全长），参考使用 `abs(p) - b`（b=半长）。调用点的语义不同但碰巧大部分场景通过了。如果要完全对齐参考需要统一。
+2. **布料几何简化**：原始布料太薄（1 体素宽），32³ 下产生空隙。已加粗到 ±1.5 体素。
+3. **无预计算 Shadow Map**：当前用内联 shadow ray，每 hit 多 trace 一根 64 步 DDA。后续可改为预计算 shadow map 降低开销。
+4. **Merge ×1.5**：之前 merge 乘了 1.5 补偿暗度，需确认是否需要（直接光已加入后应该不需要）。
+5. **帧间累积**：当前只用 preFrameCascade0（1 帧历史），可扩展为多帧 temporal accumulation。
+
+
+
 
 npm run push
 

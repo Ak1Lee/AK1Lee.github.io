@@ -348,6 +348,10 @@ todo:
 radiance cascade
 ![alt text](/images/D3D/VRC1.png)
 
+radiance cascade2
+![alt text](/images/D3D/VRC2.png)
+
+
 npm run push
 
 

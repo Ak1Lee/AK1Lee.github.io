@@ -368,7 +368,7 @@ radiance cascade2
 
 ### 数据流
 
-```
+
 Frame N:
   1. GI_VoxelBuildPass    → voxelGrid (RWTexture3D, 32×32×48)
   2. GI_CascadePass lv=0  → cascade0 (StructuredBuffer, 32×32×48×54 floats)
@@ -378,7 +378,9 @@ Frame N:
   5. GI_CascadePass lv=3  → cascade3, 读 voxelGrid + cascade2(upper) + preFrameCascade0
   6. GI_CascadePass lv=4  → cascade4, 读 voxelGrid + cascade3(upper) + preFrameCascade0
   7. GI_ViewPass          → back buffer, 读 voxelGrid + cascade0~4 + DebugCB
-```
+
+
+
 
 ### Cascade 级数参数
 
@@ -451,7 +453,7 @@ voxelId = x + y × resX + z × resX × resY
 5. **帧间累积**：当前只用 preFrameCascade0（1 帧历史），可扩展为多帧 temporal accumulation。
 
 
-
+## 5.11 读了下知乎关于dx的一些示例的解读，准备加一下GPUResource的封装。
 
 npm run push
 
